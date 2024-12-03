@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { ForceGraph2D, ForceGraph3D } from "react-force-graph";
 import SpriteText from "three-spritetext";
-import { fetchTriples } from "./api";
+import { fetchTriples, fetchTriplesForNode } from "./api";
 import { transformToGraphData } from "./graphData";
 import GraphLegend from "./GraphLegend";
 import GraphVR from "./GraphVR";
 
 const GraphVisualization = () => {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const [initialGraphData, setInitialGraphData] = useState(null);
+  const [previousGraphData, setPreviousGraphData] = useState(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [viewMode, setViewMode] = useState("2D");
   const fgRef = useRef();
@@ -19,6 +21,7 @@ const GraphVisualization = () => {
         const triples = await fetchTriples();
         const data = transformToGraphData(triples);
         setGraphData(data);
+        setInitialGraphData(data);
       } catch (error) {
         console.error("Error loading graph data:", error);
       }
@@ -26,9 +29,9 @@ const GraphVisualization = () => {
     loadData();
   }, []);
 
-  // Handle 3D node clicks
+  // Handle node clicks
   const handleNodeClick = useCallback(
-    (node) => {
+    async (node) => {
       if (viewMode === "3D" && fgRef.current) {
         const distance = 40;
         const distRatio =
@@ -42,10 +45,27 @@ const GraphVisualization = () => {
           node,
           500
         );
+
+        // Récupérer les triplets de la base de données pour le nœud sélectionné
+        try {
+          const filteredTriples = await fetchTriplesForNode(node.id);
+          console.log("Triples filtrés :", filteredTriples);
+
+          const newGraphData = transformToGraphData(filteredTriples);
+          setGraphData(newGraphData);
+        } catch (error) {
+          console.error("Erreur lors de la récupération des triplets :", error);
+        }
       }
     },
     [viewMode]
   );
+
+  // Fonction pour réinitialiser le graphique
+  const resetGraph = () => {
+    setGraphData(initialGraphData);
+    setPreviousGraphData(null);
+  };
 
   // Fit graph to view after initial render
   const handleEngineStop = useCallback(() => {
@@ -78,6 +98,11 @@ const GraphVisualization = () => {
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+      {/* Bouton pour réinitialiser le graphique */}
+      <button onClick={resetGraph} style={{ position: "absolute", top: "10px", right: "10px", zIndex: 10 }}>
+        Revenir au graphique initial
+      </button>
+
       {/* View mode selector */}
       <div
         style={{
