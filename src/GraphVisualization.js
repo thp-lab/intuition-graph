@@ -33,13 +33,13 @@ const GraphVisualization = () => {
   // Handle node clicks
   const handleNodeClick = useCallback(
     async (node) => {
-      if (viewMode === "3D" && fgRef.current) {
+      if (fgRef.current) {
         try {
           // Sauvegarder la position actuelle du nœud
           const nodePosition = {
             x: node.x,
             y: node.y,
-            z: node.z
+            z: node.z || 0  // En 2D, z sera 0
           };
 
           // Récupérer les nouveaux triplets
@@ -51,11 +51,12 @@ const GraphVisualization = () => {
           if (targetNode) {
             targetNode.x = nodePosition.x;
             targetNode.y = nodePosition.y;
-            targetNode.z = nodePosition.z;
+            if (viewMode === '3D') targetNode.z = nodePosition.z;
+            
             // Fixer le nœud en place pendant l'initialisation du graphe
             targetNode.fx = nodePosition.x;
             targetNode.fy = nodePosition.y;
-            targetNode.fz = nodePosition.z;
+            if (viewMode === '3D') targetNode.fz = nodePosition.z;
           }
 
           setGraphData(newGraphData);
@@ -68,21 +69,28 @@ const GraphVisualization = () => {
               if (targetNode) {
                 targetNode.fx = undefined;
                 targetNode.fy = undefined;
-                targetNode.fz = undefined;
+                if (viewMode === '3D') targetNode.fz = undefined;
               }
               
-              const distance = 40;
-              const distRatio = 1 + distance / Math.hypot(nodePosition.x, nodePosition.y, nodePosition.z);
-              
-              fgRef.current.cameraPosition(
-                {
-                  x: nodePosition.x * distRatio,
-                  y: nodePosition.y * distRatio,
-                  z: nodePosition.z * distRatio
-                },
-                targetNode,
-                500
-              );
+              if (viewMode === '3D') {
+                const distance = 40;
+                const distRatio = 1 + distance / Math.hypot(nodePosition.x, nodePosition.y, nodePosition.z);
+                
+                fgRef.current.cameraPosition(
+                  {
+                    x: nodePosition.x * distRatio,
+                    y: nodePosition.y * distRatio,
+                    z: nodePosition.z * distRatio
+                  },
+                  targetNode,
+                  500
+                );
+              } else {
+                // Pour 2D, on utilise zoomToFit autour du nœud
+                const distance = 100;
+                fgRef.current.centerAt(nodePosition.x, nodePosition.y, 1000);
+                fgRef.current.zoom(8, 1000);
+              }
 
               fgRef.current.d3Force('center', d3.forceCenter());
               fgRef.current.removeEventListener('engineStop', handleEngineStop);
@@ -198,6 +206,7 @@ const GraphVisualization = () => {
           linkDirectionalParticleSpeed={0.02}
           nodeAutoColorBy="group"
           onEngineStop={handleEngineStop}
+          onNodeClick={handleNodeClick}
         />
       )}
 
