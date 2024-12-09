@@ -137,3 +137,65 @@ export const fetchAtomDetails = async (atomId, endpoint = "base") => {
     throw error;
   }
 };
+
+export const fetchTriplesForNode = async (nodeId, endpoint) => {
+  const client = createClient(endpoint);
+
+  const query = gql`
+    query Triples($where: triples_bool_exp) {
+      triples(where: $where) {
+        id
+        label
+        subject {
+          label
+          id
+          creatorId
+          type
+        }
+        predicate {
+          label
+          id
+          creatorId
+          type
+        }
+        object {
+          label
+          id
+          creatorId
+          type
+        }
+      }
+    }
+  `;
+
+  const variables = {
+    where: {
+      _or: [
+        {
+          predicateId: {
+            _eq: nodeId,
+          },
+        },
+        {
+          subjectId: {
+            _eq: nodeId,
+          },
+        },
+        {
+          objectId: {
+            _eq: nodeId,
+          },
+        },
+        {
+          creatorId: {
+            _eq: nodeId,
+          },
+        },
+      ],
+    },
+  };
+
+  const data = await client.request(query, variables);
+  console.log("Données récupérées :", data); // Vérifiez la structure ici
+  return data.triples;
+};
